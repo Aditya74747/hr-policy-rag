@@ -1,204 +1,213 @@
-# Employee Policies and Compliance RAG
+<div align="center">
 
-A **privacy-first Retrieval-Augmented Generation (RAG) system** designed to securely query internal organizational documents such as **employee handbooks, HR policies, IT/computer-use guidelines, compliance documents, and internal SOPs** — entirely **offline and without reliance on external APIs**.
+# 📚 HR Policy RAG
 
-The system runs fully on local infrastructure using **Ollama-powered local LLMs**, a **Chroma vector database**, and a **Python-based RAG pipeline**, ensuring **data confidentiality, deterministic behavior, and reproducible execution**.
+### Ask questions about HR policies, employee handbooks and compliance documents, fully offline
 
-Repository:  
-https://github.com/Aditya74747/Employee-Policies-and-Compliance-RAG
+A privacy-first **Retrieval-Augmented Generation (RAG)** system that runs entirely on your own machine. Your documents never leave your computer: no cloud, no API keys, no external services.
 
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-Llama%203.1%208B-000000?style=for-the-badge&logo=ollama&logoColor=white)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector%20Store-FF6B35?style=for-the-badge)
+![LangChain](https://img.shields.io/badge/LangChain-RAG-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-## Key Capabilities
+</div>
 
-- **End-to-End Local Execution**  
-  All document processing, embedding generation, retrieval, and inference are performed locally, eliminating external data exposure.
+---
 
-- **Context-Grounded Question Answering**  
-  Responses are generated strictly from retrieved document context, reducing hallucinations and improving factual reliability.
+## 📑 Contents
 
-- **Local LLM Inference via Ollama**  
-  Uses the `llama3.1:8b` model, selected for its optimal balance of **model size, inference speed, and practical usability** in local, resource-constrained environments.
+- [Why this project?](#-why-this-project)
+- [Key Features](#-key-features)
+- [How It Works](#%EF%B8%8F-how-it-works)
+- [Example](#-example)
+- [Getting Started](#-getting-started)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Use Cases](#-use-cases)
+- [Disclaimer](#-disclaimer)
 
-- **Semantic Search with ChromaDB**  
-  Efficient vector-based retrieval for scalable document collections.
+---
 
-- **Reproducible Environment Management with `uv`**  
-  Fast dependency resolution and consistent runtime environments across systems.
+## 💡 Why this project?
 
-- **Flexible Execution Modes**  
-  Supports both **Jupyter Notebooks** for experimentation and **Python scripts** for structured execution.
+HR handbooks and policy documents are long, scattered across many files, and hard to search. At the same time, they often contain internal information that shouldn't be sent to a cloud AI service.
 
+This project answers questions about those documents using a **local LLM**, so nothing leaves your machine. Every answer is grounded in the retrieved document text and comes with **citations** (`source file | chunk`), so you can check where each statement came from.
 
+---
 
-## Model Architecture
+## ✨ Key Features
 
-This system follows a **standard Retrieval-Augmented Generation (RAG) architecture**, optimized for **local execution and enterprise data privacy**.
+| | Feature | Details |
+|---|---|---|
+| 🔒 | **Fully local** | Embeddings, vector search and generation all run on your machine; ChromaDB telemetry is turned off |
+| 📄 | **Multiple formats** | Loads **PDF**, **DOCX** and **TXT** files |
+| 🎯 | **Grounded answers** | The model may only use the retrieved excerpts, and says so when the answer isn't in them |
+| 🔖 | **Citations** | Every statement points to its source file and chunk |
+| 🧠 | **Local models** | `llama3.1:8b` for answers, `nomic-embed-text` for embeddings, both via Ollama |
+| ⚡ | **Reproducible setup** | One-command install with `uv` and a lock file |
 
-### Core Components
+---
 
-1. **Document Loader**  
-   Ingests internal documents (PDF, DOCX, TXT) using format-aware loaders.
+## ⚙️ How It Works
 
-2. **Text Chunking Layer**  
-   Splits documents into semantically meaningful chunks with overlap to preserve context continuity.
-
-3. **Embedding Model (Local)**  
-   Generates dense vector representations locally using Ollama-compatible embedding models, ensuring that both document indexing and query embeddings remain fully offline.
-
-4. **Vector Store (ChromaDB)**  
-   Stores embeddings and metadata to enable fast similarity-based retrieval.
-
-5. **Retriever**  
-   Performs Top-K semantic search against the vector database.
-
-6. **Prompt Assembly Layer**  
-   Injects retrieved context into a controlled prompt template with grounding rules.
-
-7. **Local LLM (Ollama Runtime – llama3.1:8b)**  
-   Uses the `llama3.1:8b` model for response generation, chosen for its compact footprint, reliable instruction-following, and suitability for local RAG workloads without GPU dependency.
-
-
-## Technology Stack
-
-* **Python 3.10+**
-* **Ollama** – Local LLM runtime
-* **ChromaDB** – Vector database
-* **LangChain / Custom RAG orchestration**
-* **Jupyter Notebook**
-* **uv** – Python environment and dependency management
-
-
-
-## Getting Started
-
-### 1. Install Ollama
-
-Download and install Ollama:
-
-```
-https://ollama.com
+```mermaid
+flowchart LR
+    subgraph Indexing["📥 Indexing (once)"]
+        A["📄 Documents<br/>PDF · DOCX · TXT"] --> B["✂️ Chunking<br/>900 chars, 150 overlap"]
+        B --> C["🔢 Embeddings<br/>nomic-embed-text"]
+        C --> D[("🗄️ ChromaDB")]
+    end
+    subgraph Query["💬 Asking a question"]
+        Q["❓ Question"] --> E["🔢 Embed question"]
+        E --> F["🔍 Top-5 similar chunks"]
+        D --> F
+        F --> G["📝 Prompt<br/>rules + excerpts"]
+        G --> H["🦙 llama3.1:8b"]
+        H --> I["✅ Answer with citations"]
+    end
 ```
 
-Pull a local model:
+1. **Load:** reads every PDF, DOCX and TXT file in `data/`
+2. **Chunk:** splits the text into overlapping pieces with LangChain's `RecursiveCharacterTextSplitter`
+3. **Embed and store:** turns each chunk into a vector with `nomic-embed-text` and saves it in ChromaDB (`db/`)
+4. **Retrieve:** finds the 5 chunks most similar to the question
+5. **Generate:** `llama3.1:8b` answers using only those chunks, with strict grounding rules and citations
+
+---
+
+## 🔎 Example
+
+> **Query:** What are the things that I should not do in the workplace?
+
+```
+Based on the provided policy excerpts, here is a list of things that you should not do in the workplace:
+
+* Engage in any activity that is illegal under local, state, federal or international law while
+  utilizing Holiday Market-owned resources. (Computer Use Policy.pdf | chunk 9)
+* Make threats, even as a joke or prank, during working hours or in company vehicles. (handbook.pdf | chunk 34)
+* Work for any company in direct competition with Holiday Market without written consent. (handbook.pdf | chunk 83)
+* Solicit other associates during working time. (handbook.pdf | chunk 83)
+* Distribute literature on company premises during working time, except as permitted by management.
+  (handbook.pdf | chunk 83)
+```
+
+More example questions and answers are in [`main_rag.ipynb`](main_rag.ipynb).
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- 🐍 **Python 3.11+**
+- 🦙 **[Ollama](https://ollama.com)**
+- ⚡ **[uv](https://docs.astral.sh/uv/)**: install with `pip install uv`
+- 💻 About **8 GB of RAM** for `llama3.1:8b`; no GPU needed
+
+### 1️⃣ Get the models
 
 ```bash
 ollama pull nomic-embed-text
 ollama pull llama3.1:8b
 ```
 
-Start Ollama:
+Make sure Ollama is running. The desktop app runs it in the background; otherwise use `ollama serve`.
+
+### 2️⃣ Clone and install
 
 ```bash
-ollama serve
-```
-
-
-
-### 2. Clone the Repository
-
-```bash
-git clone https://github.com/Aditya74747/Employee-Policies-and-Compliance-RAG.git
-cd Employee-Policies-and-Compliance-RAG
-```
-
-
-
-### 3. Set Up the Python Environment
-
-Install `uv`:
-
-```bash
-pip install uv
-```
-
-Create the environment and install dependencies:
-
-```bash
-uv venv
-uv add -r requirements.txt
+git clone https://github.com/Aditya74747/hr-policy-rag.git
+cd hr-policy-rag
 uv sync
 ```
 
+<details>
+<summary>Without uv (plain pip)</summary>
 
+```bash
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS / Linux
+pip install -r requirements.txt
+```
 
-### 4. Add Internal Documents
+</details>
 
-Place documents in the folder:
+### 3️⃣ Add your documents
+
+Put your PDF, DOCX or TXT files into a `data/` folder in the project root. It's created automatically on the first run, and it's git-ignored so your documents are never committed.
 
 ```
-data/
+hr-policy-rag/
+└── data/
+    ├── handbook.pdf
+    ├── leave-policy.docx
+    └── it-guidelines.txt
 ```
 
-Supported formats:
-
-* PDF
-* DOCX
-* TXT
-
-
-
-### 5. Run via Jupyter Notebook
+### 4️⃣ Run the notebook
 
 ```bash
 uv run jupyter notebook
 ```
-Run all cells from top to bottom.
 
+Open `main_rag.ipynb` and run all cells from top to bottom. The indexing cell builds the vector database in `db/`. It may take a few minutes the first time, and running it again rebuilds the database from scratch.
 
-### 6. Query in the Notebook
+Then ask your own questions:
 
-Example query and response:
-
-```
-Query: What are the things that I should not do in the workplace?
-
-Response: Based on the provided policy excerpts, here is a list of things that you should not do in the workplace:
-
-* Engage in any activity that is illegal under local, state, federal or international law while utilizing Holiday Market-owned resources. (Computer Use Policy.pdf | chunk 9)
-* Participate in system and network activities that are strictly prohibited, with no exceptions (e.g. hacking, unauthorized access). (Computer Use Policy.pdf | chunk 9)
-* Make threats, even as a joke or prank, during working hours or in company vehicles. (handbook.pdf | chunk 34)
-* Commit violent acts or threaten violence during non-working hours or away from the workplace, unless:
-	+ The associate's conduct adversely affects the Company's reputation. (A) (handbook.pdf | chunk 34)
-	+ The Company determines that the effects of the off-duty conduct may be carried into the workplace and/or pose a threat to Company associates, visitors or property. (B) (handbook.pdf | chunk 34)
-	+ The conduct results in the conviction of the associate for an assault or other felony. (C) (handbook.pdf | chunk 34)
-* Work for any company in direct competition with Holiday Market without written consent. (handbook.pdf | chunk 83)
-* Solicit other associates during working time. (handbook.pdf | chunk 83)
-* Distribute literature on company premises during working time, except as permitted by management. (handbook.pdf | chunk 83)
-* Enter or remain in the interior of the building or other working area unless you are on duty or scheduled to work. (handbook.pdf | chunk 83)
-
+```python
+print(ask("What is the notice period for resignation?"))
 ```
 
+---
 
+## 🛠️ Configuration
 
+All settings are at the top of the notebook:
 
-## Representative Use Cases
+| Setting | Default | What it does |
+|---|---|---|
+| `DATA_DIR` | `data` | Folder with your documents |
+| `DB_DIR` | `db` | Where ChromaDB stores the vectors |
+| `chunk_size` / `chunk_overlap` | `900` / `150` | Size of each text chunk and how much neighbouring chunks overlap |
+| `k` in `ask()` | `5` | How many chunks are given to the model |
+| LLM model | `llama3.1:8b` | Any Ollama model works, e.g. `qwen3:8b` or `mistral` |
+| `temperature` | `0.2` | Kept low for factual, consistent answers |
 
-* HR policy clarification (leave, probation, payroll rules)
-* IT and acceptable-use policy lookup
-* Internal SOP and compliance reference
-* Employee self-service knowledge assistant
-* Audit and policy verification support
+---
+
+## 🧰 Tech Stack
+
+| Component | Technology |
+|---|---|
+| Language | Python 3.11+ |
+| LLM runtime | Ollama (`llama3.1:8b`) |
+| Embeddings | `nomic-embed-text` via Ollama |
+| Vector store | ChromaDB |
+| RAG framework | LangChain |
+| Document parsing | `pypdf`, `python-docx` |
+| Environment | `uv` + Jupyter Notebook |
+
+---
+
+## 🎯 Use Cases
+
+- 🏖️ HR policy questions: leave, probation, payroll, resignation
+- 💻 IT and acceptable-use policy lookup
+- 📋 Internal SOP and compliance reference
+- 🙋 Employee self-service knowledge assistant
+- ✅ Audit and policy verification support
+
+---
 
 ## 📌 Disclaimer
 
-This project is intended for **internal and private document analysis** only.
-Users are responsible for ensuring compliance with applicable **organizational, legal, and data-governance requirements**.
+This repository contains **code only**. The documents used during development (for example the Holiday Market employee handbook and computer use policy) come from publicly available sources and are **not included**. All third-party documents remain the property of their respective owners.
 
-This repository contains **code only**.
+Answers are generated by an LLM and can be incomplete or wrong. Always check the cited source before acting on an answer.
 
-Any documents such as employee handbooks, computer usage policies, or HR policies
-used during development were obtained from publicly available sources
-(e.g., the Holiday Market website) and are **not included in this repository**.
+## 📄 License
 
-All third-party documents remain the property of their respective owners.
-This project does not claim ownership or redistribution rights over any such content.
-
-## License
-
-MIT License.
-
-
-## Author
-
-Developed by **Aditya Ghatage** for privacy-first, enterprise-grade AI knowledge systems.
-Contributions and improvements are welcome.
+[MIT](LICENSE)
